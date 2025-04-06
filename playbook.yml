@@ -1,54 +1,42 @@
-# playbook.yml
-- name: Setup Dev Environment on Hetzner Server
-  hosts: all
+---
+- name: Configure system with Nix packages
+  hosts: localhost
   become: true
-
-  vars:
-    dotfiles_repo: "https://github.com/alexbenisch/dotfiles.git"
-    lazyvim_repo: "https://github.com/LazyVim/starter.git"
-    user: alex
-    home: "/home/alex"
-
   tasks:
-    - name: Ensure packages are installed
-      package:
-        name:
-          - zsh
-          - git
-          - tmux
-          - stow
-          - gnupg
-          - curl
-          - ripgrep
-          - fd-find
-          - neovim
-          - lua
-          - make
-          - gcc
-        state: present
-
-    - name: Clone dotfiles repo
-      git:
-        repo: "{{ dotfiles_repo }}"
-        dest: "{{ home }}/dotfiles"
-        version: HEAD
-        update: no
-      become_user: "{{ user }}"
-
-    - name: Clone LazyVim starter
-      git:
-        repo: "{{ lazyvim_repo }}"
-        dest: "{{ home }}/.config/nvim"
-        version: HEAD
-        update: no
-      become_user: "{{ user }}"
-
-    - name: Symlink dotfiles
-      shell: stow -d {{ home }}/dotfiles -t {{ home }} zsh tmux nvim
+    - name: Load Nix profile environment
+      shell: |
+        . /home/alex/.nix-profile/etc/profile.d/nix.sh
       args:
-        chdir: "{{ home }}/dotfiles"
-      become_user: "{{ user }}"
+        executable: /bin/bash
 
-    - name: Run Neovim to install plugins
-      shell: nvim --headless "+Lazy sync" +qa
-      become_user: "{{ user }}"
+    - name: Install tools via Nix
+      become_user: alex
+      shell: |
+        . /home/alex/.nix-profile/etc/profile.d/nix.sh
+        nix-env -iA \
+          nixpkgs.zsh \
+          nixpkgs.tmux \
+          nixpkgs.stow \
+          nixpkgs.ripgrep \
+          nixpkgs.fzf \
+          nixpkgs.fd \
+          nixpkgs.git \
+          nixpkgs.neovim \
+          nixpkgs.lua \
+          nixpkgs.gcc \
+          nixpkgs.gnumake
+      args:
+        executable: /bin/bash
+
+    - name: Stow dotfiles
+      become_user: alex
+      shell: |
+        cd /home/alex/.local/share/dotfiles
+        stow --restow */
+      args:
+        executable: /bin/bash
+
+    - name: Set Zsh as default shell (again to ensure consistency)
+      user:
+        name: alex
+        shell: /home/alex/.nix-profile/bin/zsh
