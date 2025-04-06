@@ -3,6 +3,15 @@
   hosts: localhost
   become: true
   tasks:
+    - name: Set correct locale
+      shell: |
+        echo "🌐 Konfiguriere Locale-Einstellungen..."
+        export LC_ALL=C.UTF-8
+        export LANG=C.UTF-8
+        locale-gen C.UTF-8
+      args:
+        executable: /bin/bash
+
     - name: Load Nix profile environment
       shell: |
         . /home/alex/.nix-profile/etc/profile.d/nix.sh
